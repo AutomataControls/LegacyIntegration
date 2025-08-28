@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """
-Automata Tunnel Uninstaller GUI
-Complete Removal of Portal & Cloudflare Tunnel
-Version: 1.0.0
+AutomataControls™ Tunnel Uninstaller GUI
+Removes Portal & Cloudflare Tunnel Configuration
+Copyright © 2024 AutomataNexus, LLC. All rights reserved.
+
+PROPRIETARY AND CONFIDENTIAL
+Version: 2.0.0
 """
 
 import subprocess

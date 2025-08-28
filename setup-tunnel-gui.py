@@ -68,22 +68,22 @@ if __name__ == "__main__":
             print("Please run manually: sudo apt-get install python3-tk python3-pil python3-pil.imagetk")
             sys.exit(1)
 
-# Neural Nexus Color Scheme
+# Neural Nexus Color Scheme - Light Theme
 COLORS = {
-    'bg_primary': '#0a0e1a',
-    'bg_secondary': '#0f1823',
-    'bg_tertiary': '#1a2332',
-    'bg_card': '#141b28',
+    'bg_primary': '#ffffff',
+    'bg_secondary': '#f8f9fa',
+    'bg_tertiary': '#e9ecef',
+    'bg_card': '#ffffff',
     'accent_primary': '#06b6d4',
     'accent_secondary': '#0891b2',
-    'accent_light': '#67e8f9',
-    'text_primary': '#f0f9ff',
-    'text_secondary': '#94a3b8',
-    'text_tertiary': '#64748b',
+    'accent_light': '#22d3ee',
+    'text_primary': '#212529',
+    'text_secondary': '#495057',
+    'text_tertiary': '#6c757d',
     'success': '#10b981',
     'warning': '#f59e0b',
     'error': '#ef4444',
-    'border': 'rgba(148, 163, 184, 0.2)'
+    'border': '#dee2e6'
 }
 
 # API Keys (encoded for security)
@@ -505,9 +505,32 @@ class TunnelInstallerGUI:
             self.queue.put(('console', f'✓ Tunnel Domain: {self.tunnel_domain}\n\n'))
             time.sleep(1)
             
-            # STEP 3: Install dependencies
+            # STEP 3: Install system dependencies  
+            self.queue.put(('console', '═══════════════════════════════════════\n'))
+            self.queue.put(('console', 'INSTALLING SYSTEM DEPENDENCIES\n'))
+            self.queue.put(('console', '═══════════════════════════════════════\n\n'))
+            self.queue.put(('progress', (15, 'Installing system packages...')))
+            
+            # Install required system packages
+            self.queue.put(('console', 'Installing build tools and libraries...\n'))
+            subprocess.run(['sudo', 'apt-get', 'update'], capture_output=True)
+            subprocess.run(['sudo', 'apt-get', 'install', '-y', 
+                           'build-essential', 'python3', 'python3-pip', 
+                           'wget', 'curl', 'git'], capture_output=True)
+            
+            # Check Node.js installation
+            node_check = subprocess.run(['which', 'node'], capture_output=True)
+            if not node_check.stdout:
+                self.queue.put(('console', 'Installing Node.js...\n'))
+                subprocess.run(['curl', '-fsSL', 'https://deb.nodesource.com/setup_18.x', '|', 'sudo', '-E', 'bash', '-'], 
+                             shell=True, capture_output=True)
+                subprocess.run(['sudo', 'apt-get', 'install', '-y', 'nodejs'], capture_output=True)
+            
+            self.queue.put(('console', '✓ System dependencies installed\n\n'))
+            
+            # STEP 4: Install Node.js dependencies
             self.queue.put(('console', 'Installing Node.js dependencies...\n'))
-            self.queue.put(('progress', (20, 'Installing dependencies...')))
+            self.queue.put(('progress', (25, 'Installing Node.js packages...')))
             
             # Copy portal files
             portal_src = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'remote-access-portal')
@@ -518,11 +541,12 @@ class TunnelInstallerGUI:
             
             # Install Node.js packages
             os.chdir(portal_dest)
-            subprocess.run(['sudo', '-u', user, 'npm', 'install'], check=True, capture_output=True)
+            self.queue.put(('console', 'Running npm install (this may take a few minutes)...\n'))
+            subprocess.run(['sudo', '-u', user, 'npm', 'install', '--production'], check=True, capture_output=True)
             
-            self.queue.put(('console', '✓ Dependencies installed\n\n'))
+            self.queue.put(('console', '✓ Node.js dependencies installed\n\n'))
             
-            # STEP 4: Generate .env file
+            # STEP 5: Generate .env file
             self.queue.put(('console', 'Generating configuration file...\n'))
             self.queue.put(('progress', (30, 'Creating configuration...')))
             
@@ -596,9 +620,166 @@ EMAIL_ADMIN=admin@automatacontrols.com
             
             self.queue.put(('console', f'✓ Configuration saved to {env_path}\n\n'))
             
-            # Continue with Cloudflare tunnel setup...
-            # [Rest of the installation continues here - tunnel creation, systemd services, etc.]
+            # STEP 6: Install Cloudflare tunnel (32-bit ARM)
+            self.queue.put(('console', '═══════════════════════════════════════\n'))
+            self.queue.put(('console', 'INSTALLING CLOUDFLARE TUNNEL\n'))
+            self.queue.put(('console', '═══════════════════════════════════════\n\n'))
+            self.queue.put(('progress', (40, 'Installing Cloudflare tunnel...')))
             
+            # Download and install cloudflared for 32-bit ARM (armhf)
+            cloudflared_url = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-armhf"
+            cloudflared_path = "/usr/local/bin/cloudflared"
+            
+            self.queue.put(('console', 'Downloading cloudflared for 32-bit ARM...\n'))
+            subprocess.run(['wget', '-O', cloudflared_path, cloudflared_url], check=True, capture_output=True)
+            subprocess.run(['chmod', '+x', cloudflared_path], check=True)
+            
+            self.queue.put(('console', '✓ Cloudflared installed\n\n'))
+            
+            # STEP 7: Create Cloudflare tunnel
+            self.queue.put(('console', 'Creating Cloudflare tunnel...\n'))
+            self.queue.put(('progress', (50, 'Creating tunnel...')))
+            
+            # Login to Cloudflare (this will open browser for auth)
+            subprocess.run(['cloudflared', 'tunnel', 'login'], check=False, capture_output=True)
+            
+            # Delete existing tunnel if it exists
+            subprocess.run(['cloudflared', 'tunnel', 'delete', tunnel_name], capture_output=True)
+            
+            # Create new tunnel
+            result = subprocess.run(['cloudflared', 'tunnel', 'create', tunnel_name], capture_output=True, text=True)
+            
+            # Get tunnel UUID from output
+            tunnel_id = None
+            for line in result.stdout.split('\n'):
+                if 'Created tunnel' in line and tunnel_name in line:
+                    parts = line.split()
+                    for i, part in enumerate(parts):
+                        if part == tunnel_name and i > 0:
+                            tunnel_id = parts[i-1]
+                            break
+            
+            if not tunnel_id:
+                # Try to list tunnels to get ID
+                result = subprocess.run(['cloudflared', 'tunnel', 'list'], capture_output=True, text=True)
+                for line in result.stdout.split('\n'):
+                    if tunnel_name in line:
+                        tunnel_id = line.split()[0]
+                        break
+            
+            self.queue.put(('console', f'✓ Tunnel created: {tunnel_name}\n'))
+            if tunnel_id:
+                self.queue.put(('console', f'  Tunnel ID: {tunnel_id}\n'))
+            self.queue.put(('console', '\n'))
+            
+            # STEP 8: Configure tunnel routing
+            self.queue.put(('console', 'Configuring tunnel routing...\n'))
+            self.queue.put(('progress', (60, 'Configuring routing...')))
+            
+            # Create config.yml for tunnel
+            config_yml = f"""
+tunnel: {tunnel_id if tunnel_id else tunnel_name}
+credentials-file: /home/{user}/.cloudflared/{tunnel_id if tunnel_id else tunnel_name}.json
+
+ingress:
+  - hostname: {self.tunnel_domain}
+    service: http://localhost:{port}
+  - service: http_status:404
+"""
+            
+            config_path = f'/home/{user}/.cloudflared/config.yml'
+            os.makedirs(f'/home/{user}/.cloudflared', exist_ok=True)
+            
+            with open(config_path, 'w') as f:
+                f.write(config_yml)
+            
+            subprocess.run(['chown', '-R', f'{user}:{user}', f'/home/{user}/.cloudflared'], check=True)
+            
+            # Route DNS
+            subprocess.run(['cloudflared', 'tunnel', 'route', 'dns', tunnel_name, self.tunnel_domain], capture_output=True)
+            
+            self.queue.put(('console', f'✓ Tunnel configured: {self.tunnel_domain}\n\n'))
+            
+            # STEP 9: Create systemd services
+            self.queue.put(('console', '═══════════════════════════════════════\n'))
+            self.queue.put(('console', 'CREATING SYSTEM SERVICES\n'))
+            self.queue.put(('console', '═══════════════════════════════════════\n\n'))
+            self.queue.put(('progress', (70, 'Creating services...')))
+            
+            # Create cloudflared service
+            cloudflared_service = f"""[Unit]
+Description=Cloudflare Tunnel
+After=network.target
+
+[Service]
+Type=notify
+User={user}
+Group={user}
+ExecStart=/usr/local/bin/cloudflared tunnel --no-autoupdate run
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
+"""
+            
+            with open('/etc/systemd/system/cloudflared.service', 'w') as f:
+                f.write(cloudflared_service)
+            
+            self.queue.put(('console', '✓ Cloudflared service created\n'))
+            
+            # Create portal service
+            portal_service = f"""[Unit]
+Description=AutomataNexus Portal
+After=network.target
+
+[Service]
+Type=simple
+User={user}
+Group={user}
+WorkingDirectory={portal_dest}
+Environment="NODE_ENV=production"
+ExecStart=/usr/bin/node {portal_dest}/server.js
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
+"""
+            
+            with open('/etc/systemd/system/automata-portal.service', 'w') as f:
+                f.write(portal_service)
+            
+            self.queue.put(('console', '✓ Portal service created\n\n'))
+            
+            # STEP 10: Enable and start services
+            self.queue.put(('console', 'Starting services...\n'))
+            self.queue.put(('progress', (85, 'Starting services...')))
+            
+            subprocess.run(['systemctl', 'daemon-reload'], check=True)
+            subprocess.run(['systemctl', 'enable', 'cloudflared'], check=True)
+            subprocess.run(['systemctl', 'enable', 'automata-portal'], check=True)
+            subprocess.run(['systemctl', 'start', 'automata-portal'], check=True)
+            subprocess.run(['systemctl', 'start', 'cloudflared'], check=True)
+            
+            # Wait for services to start
+            time.sleep(5)
+            
+            # Check service status
+            portal_status = subprocess.run(['systemctl', 'is-active', 'automata-portal'], capture_output=True, text=True)
+            tunnel_status = subprocess.run(['systemctl', 'is-active', 'cloudflared'], capture_output=True, text=True)
+            
+            if portal_status.stdout.strip() == 'active':
+                self.queue.put(('console', '✓ Portal service running\n'))
+            else:
+                self.queue.put(('console', '⚠️ Portal service not running - check logs\n'))
+            
+            if tunnel_status.stdout.strip() == 'active':
+                self.queue.put(('console', '✓ Tunnel service running\n'))
+            else:
+                self.queue.put(('console', '⚠️ Tunnel service not running - check logs\n'))
+            
+            self.queue.put(('console', '\n'))
             self.queue.put(('progress', (100, 'Installation complete!')))
             self.queue.put(('console', '\n═══════════════════════════════════════\n'))
             self.queue.put(('console', '✓ INSTALLATION COMPLETE!\n'))
