@@ -499,6 +499,7 @@ class TunnelSetupGUI:
             
             # Progress tracking
             stages = {
+                'Cleaning up': 5,
                 'Generating serial number': 10,
                 'Installing web dependencies': 15,
                 'Installing cloudflared': 20,
@@ -513,6 +514,53 @@ class TunnelSetupGUI:
                 'Enabling boot startup': 95,
                 'Setup complete': 100
             }
+            
+            # STEP 0: Clean up any failed installations
+            self.queue.put(('console', '========================================\n'))
+            self.queue.put(('console', 'CLEANING UP PREVIOUS INSTALLATIONS\n'))
+            self.queue.put(('console', '========================================\n\n'))
+            self.queue.put(('progress', (5, 'Cleaning up...')))
+            
+            # Stop and disable services if they exist
+            subprocess.run(['sudo', 'systemctl', 'stop', 'cloudflared'], capture_output=True)
+            subprocess.run(['sudo', 'systemctl', 'stop', 'automata-portal'], capture_output=True)
+            subprocess.run(['sudo', 'systemctl', 'disable', 'cloudflared'], capture_output=True)
+            subprocess.run(['sudo', 'systemctl', 'disable', 'automata-portal'], capture_output=True)
+            
+            # Remove old service files
+            subprocess.run(['sudo', 'rm', '-f', '/etc/systemd/system/cloudflared.service'], capture_output=True)
+            subprocess.run(['sudo', 'rm', '-f', '/etc/systemd/system/automata-portal.service'], capture_output=True)
+            
+            # Get user
+            user = os.environ.get('SUDO_USER', 'pi')
+            if not user:
+                user = 'Automata'
+            
+            # Remove old cloudflared configurations
+            subprocess.run(['sudo', 'rm', '-rf', f'/home/{user}/.cloudflared'], capture_output=True)
+            
+            # Remove old portal directory (but preserve node_modules)
+            portal_dir = f'/home/{user}/remote-access-portal'
+            if os.path.exists(portal_dir):
+                node_modules = f'{portal_dir}/node_modules'
+                if os.path.exists(node_modules):
+                    subprocess.run(['sudo', 'mv', node_modules, '/tmp/portal_node_modules_backup'], capture_output=True)
+                subprocess.run(['sudo', 'rm', '-rf', portal_dir], capture_output=True)
+            
+            # Remove old config files
+            subprocess.run(['sudo', 'rm', '-f', f'/home/{user}/controller-config.txt'], capture_output=True)
+            subprocess.run(['sudo', 'rm', '-f', f'/home/{user}/tunnel-config.txt'], capture_output=True)
+            
+            # Remove partially downloaded packages
+            subprocess.run(['sudo', 'bash', '-c', 'rm -f cloudflared*.deb'], capture_output=True)
+            
+            # Reload systemd daemon
+            subprocess.run(['sudo', 'systemctl', 'daemon-reload'], capture_output=True)
+            
+            self.queue.put(('console', '✓ Cleanup complete\n'))
+            self.queue.put(('console', '✓ Previous installations removed\n'))
+            self.queue.put(('console', '✓ Services stopped and disabled\n\n'))
+            time.sleep(1)
             
             # STEP 1: Generate serial number
             self.queue.put(('console', '========================================\n'))
@@ -575,27 +623,32 @@ class TunnelSetupGUI:
             except:
                 self.queue.put(('console', 'Installing cloudflared...\n'))
                 
-                # Detect architecture
+                # Force 32-bit ARM package for 32-bit Bullseye systems
+                # These systems run exclusively on 32-bit OS
                 import platform
-                machine = platform.machine()
-                if machine == 'aarch64' or machine == 'arm64':
-                    # 64-bit ARM
-                    cloudflared_pkg = 'cloudflared-linux-arm64.deb'
-                elif machine == 'armv7l' or machine == 'armhf':
-                    # 32-bit ARM (Raspberry Pi)
-                    cloudflared_pkg = 'cloudflared-linux-armhf.deb'
-                else:
-                    # Fallback to 32-bit ARM for other ARM variants
-                    cloudflared_pkg = 'cloudflared-linux-armhf.deb'
+                cloudflared_pkg = 'cloudflared-linux-armhf.deb'
+                machine = 'armv7l'
                 
                 self.queue.put(('console', f'Detected architecture: {machine}\n'))
                 self.queue.put(('console', f'Downloading {cloudflared_pkg}...\n'))
                 
-                subprocess.run([
-                    'wget', '-q',
-                    f'https://github.com/cloudflare/cloudflared/releases/latest/download/{cloudflared_pkg}'
-                ], check=True)
-                subprocess.run(['sudo', 'dpkg', '-i', cloudflared_pkg], check=True)
+                try:
+                    subprocess.run([
+                        'wget', '-q',
+                        f'https://github.com/cloudflare/cloudflared/releases/latest/download/{cloudflared_pkg}'
+                    ], check=True)
+                except:
+                    self.queue.put(('console', '✗ Failed to download cloudflared\n'))
+                    raise Exception("Download failed - check internet connection")
+                
+                # Try to install, if it fails, fix dependencies
+                result = subprocess.run(['sudo', 'dpkg', '-i', cloudflared_pkg], capture_output=True)
+                if result.returncode != 0:
+                    self.queue.put(('console', 'Fixing package dependencies...\n'))
+                    subprocess.run(['sudo', 'apt-get', 'update'], check=True)
+                    subprocess.run(['sudo', 'apt-get', 'install', '-f', '-y'], check=True)
+                    subprocess.run(['sudo', 'dpkg', '-i', cloudflared_pkg], check=True)
+                
                 subprocess.run(['rm', cloudflared_pkg], check=True)
                 self.queue.put(('console', '✓ Cloudflared installed successfully\n\n'))
             

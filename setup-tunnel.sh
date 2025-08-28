@@ -30,6 +30,48 @@ if [ "$EUID" -ne 0 ]; then
    exit 1
 fi
 
+# Clean up any failed installations
+echo -e "${YELLOW}Cleaning up any previous failed installations...${NC}"
+
+# Stop and disable services if they exist
+systemctl stop cloudflared 2>/dev/null || true
+systemctl stop automata-portal 2>/dev/null || true
+systemctl disable cloudflared 2>/dev/null || true
+systemctl disable automata-portal 2>/dev/null || true
+
+# Remove old service files
+rm -f /etc/systemd/system/cloudflared.service
+rm -f /etc/systemd/system/automata-portal.service
+
+# Remove old cloudflared configurations
+rm -rf /home/${USER}/.cloudflared 2>/dev/null || true
+
+# Remove old portal directory (but preserve node_modules if exists)
+if [ -d "/home/${USER}/remote-access-portal" ]; then
+    # Preserve node_modules if it exists
+    if [ -d "/home/${USER}/remote-access-portal/node_modules" ]; then
+        mv /home/${USER}/remote-access-portal/node_modules /tmp/portal_node_modules_backup 2>/dev/null || true
+    fi
+    rm -rf /home/${USER}/remote-access-portal
+fi
+
+# Remove old config files
+rm -f /home/${USER}/controller-config.txt 2>/dev/null || true
+rm -f /home/${USER}/tunnel-config.txt 2>/dev/null || true
+
+# Remove partially downloaded packages
+rm -f cloudflared*.deb 2>/dev/null || true
+
+echo -e "${GREEN}✓ Cleanup complete${NC}"
+echo ""
+
+# Ensure wget is installed
+if ! command -v wget &> /dev/null; then
+    echo -e "${YELLOW}Installing wget...${NC}"
+    apt-get update
+    apt-get install -y wget
+fi
+
 # Decode API key (base64 encoded for obfuscation)
 # Original: yYYuY2_JrPG-Cyepidg582kYWfhAdWPu-ertr1fM
 ENCODED_API="eVlZdVkyX0pyUEctQ3llcGlkZzU4MmtZV2ZoQWRXUHUtZXJ0cjFmTQ=="
@@ -39,24 +81,27 @@ CLOUDFLARE_API=$(echo "$ENCODED_API" | base64 -d)
 if ! command -v cloudflared &> /dev/null; then
     echo -e "${YELLOW}Installing Cloudflare tunnel...${NC}"
     
-    # Detect architecture
-    ARCH=$(uname -m)
-    if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
-        # 64-bit ARM
-        CLOUDFLARED_PKG="cloudflared-linux-arm64.deb"
-    elif [ "$ARCH" = "armv7l" ] || [ "$ARCH" = "armhf" ]; then
-        # 32-bit ARM (Raspberry Pi)
-        CLOUDFLARED_PKG="cloudflared-linux-armhf.deb"
-    else
-        # Fallback to 32-bit ARM
-        CLOUDFLARED_PKG="cloudflared-linux-armhf.deb"
-    fi
+    # Force 32-bit ARM package for 32-bit Bullseye systems
+    # These systems run exclusively on 32-bit OS
+    CLOUDFLARED_PKG="cloudflared-linux-armhf.deb"
+    ARCH="armv7l"
     
     echo -e "${YELLOW}Detected architecture: ${ARCH}${NC}"
     echo -e "${YELLOW}Downloading ${CLOUDFLARED_PKG}...${NC}"
     
-    wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/${CLOUDFLARED_PKG}
-    dpkg -i ${CLOUDFLARED_PKG}
+    if ! wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/${CLOUDFLARED_PKG}; then
+        echo -e "${RED}Failed to download cloudflared. Check internet connection.${NC}"
+        exit 1
+    fi
+    
+    # Install cloudflared and fix any dependency issues
+    sudo dpkg -i ${CLOUDFLARED_PKG} 2>/dev/null || {
+        echo -e "${YELLOW}Fixing dependencies...${NC}"
+        sudo apt-get update
+        sudo apt-get install -f -y
+        sudo dpkg -i ${CLOUDFLARED_PKG}
+    }
+    
     rm ${CLOUDFLARED_PKG}
 fi
 
