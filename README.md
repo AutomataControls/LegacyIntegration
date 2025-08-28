@@ -80,10 +80,31 @@ Legacy Integration/
 - Internet connection
 - Sudo privileges
 
-### GUI Installation (Recommended)
+### Installation Steps
+
+1. **Clone the repository:**
 ```bash
-cd "/media/Automata/Samsung USB/AutomataNexus/Legacy Integration"
+cd /home/Automata
+git clone https://github.com/AutomataControls/LegacyIntegration.git
+cd LegacyIntegration
+```
+
+2. **Make installers executable:**
+```bash
+chmod +x setup-tunnel-gui.py
+chmod +x setup-tunnel.sh
+```
+
+3. **Run the installer:**
+
+#### GUI Installation (Recommended)
+```bash
 sudo python3 setup-tunnel-gui.py
+```
+
+#### Command-Line Installation
+```bash
+sudo bash setup-tunnel.sh
 ```
 
 The installer will:
@@ -98,12 +119,6 @@ The installer will:
 5. Install all Node.js dependencies
 6. Setup Cloudflare tunnel
 7. Configure systemd services for auto-start
-
-### Command-Line Installation
-```bash
-cd "/media/Automata/Samsung USB/AutomataNexus/Legacy Integration"
-sudo bash setup-tunnel.sh
-```
 
 ## 🔧 Configuration
 
