@@ -181,6 +181,46 @@ class TunnelInstallerGUI:
         left_frame = tk.Frame(content_frame, bg=COLORS['bg_card'])
         left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 15))
         
+        # LICENSE FRAME - MUST BE FIRST (like original installer)
+        license_frame = tk.Frame(left_frame, bg=COLORS['bg_secondary'], relief=tk.RAISED, bd=1)
+        license_frame.pack(fill=tk.X, padx=15, pady=(15, 15))
+        
+        license_title = tk.Label(
+            license_frame,
+            text="AutomataControls™ - Commercial License",
+            font=('Inter', 12, 'bold'),
+            fg=COLORS['accent_primary'],
+            bg=COLORS['bg_secondary']
+        )
+        license_title.pack(pady=(10, 5))
+        
+        license_text = tk.Label(
+            license_frame,
+            text="© 2024 AutomataNexus, LLC. All Rights Reserved.\n"
+                 "Commercial License Required - Not Open Source\n"
+                 "⚠️ UNAUTHORIZED USE PROHIBITED - Contains Trade Secrets",
+            font=('Inter', 9),
+            fg=COLORS['text_primary'],
+            bg=COLORS['bg_secondary'],
+            justify=tk.CENTER
+        )
+        license_text.pack(pady=(0, 5))
+        
+        # Accept license checkbox
+        self.license_var = tk.BooleanVar()
+        self.license_check = tk.Checkbutton(
+            license_frame,
+            text="I accept the commercial license agreement and have a valid license",
+            variable=self.license_var,
+            font=('Inter', 10, 'bold'),
+            fg=COLORS['text_primary'],
+            bg=COLORS['bg_secondary'],
+            selectcolor='white',
+            activebackground=COLORS['bg_secondary'],
+            command=self.check_license
+        )
+        self.license_check.pack(pady=(0, 10))
+        
         # Configuration header
         config_header = tk.Frame(left_frame, bg=COLORS['bg_tertiary'])
         config_header.pack(fill=tk.X)
@@ -189,7 +229,7 @@ class TunnelInstallerGUI:
             config_header,
             text="CONTROLLER CONFIGURATION",
             font=('Inter', 11, 'bold'),
-            fg=COLORS['accent_light'],
+            fg=COLORS['accent_primary'],
             bg=COLORS['bg_tertiary']
         )
         config_label.pack(anchor=tk.W, padx=20, pady=15)
@@ -215,57 +255,62 @@ class TunnelInstallerGUI:
                               "Default: 8000")
         self.port_entry.insert(0, "8000")
         
-        # License acceptance
-        license_frame = tk.Frame(inputs_frame, bg=COLORS['bg_card'])
-        license_frame.pack(fill=tk.X, pady=(20, 0))
-        
-        self.license_var = tk.BooleanVar()
-        self.license_check = tk.Checkbutton(
-            license_frame,
-            text="I accept the AutomataNexus commercial license agreement",
-            variable=self.license_var,
-            font=('Inter', 10),
-            fg=COLORS['text_secondary'],
-            bg=COLORS['bg_card'],
-            selectcolor=COLORS['bg_tertiary'],
-            activebackground=COLORS['bg_card'],
-            command=self.check_license
-        )
-        self.license_check.pack(anchor=tk.W)
-        
-        # Buttons
+        # Buttons frame (matches original installer)
         button_frame = tk.Frame(inputs_frame, bg=COLORS['bg_card'])
         button_frame.pack(fill=tk.X, pady=(30, 0))
         
+        # Exit button on LEFT
+        exit_btn = tk.Button(
+            button_frame,
+            text="Exit",
+            font=('Inter', 11),
+            bg=COLORS['bg_tertiary'],
+            fg=COLORS['text_primary'],
+            activebackground=COLORS['bg_secondary'],
+            activeforeground=COLORS['text_primary'],
+            command=self.root.quit,
+            padx=20,
+            pady=8,
+            relief=tk.RAISED,
+            bd=2
+        )
+        exit_btn.pack(side=tk.LEFT)
+        
+        # Install button on RIGHT (disabled until license accepted)
         self.install_btn = tk.Button(
             button_frame,
-            text="⚡ START INSTALLATION",
+            text="Install",
             font=('Inter', 11, 'bold'),
-            bg=COLORS['accent_primary'],
-            fg=COLORS['bg_primary'],
-            bd=0,
-            padx=25,
-            pady=12,
-            cursor='hand2',
+            bg=COLORS['bg_tertiary'],
+            fg=COLORS['text_primary'],
+            activebackground=COLORS['accent_primary'],
+            activeforeground='white',
             command=self.start_installation,
-            state='disabled'
+            state=tk.DISABLED,
+            padx=25,
+            pady=8,
+            relief=tk.RAISED,
+            bd=2
         )
-        self.install_btn.pack(side=tk.LEFT, padx=(0, 10))
+        self.install_btn.pack(side=tk.RIGHT, padx=(10, 0))
         
+        # Cancel button next to Install
         self.cancel_btn = tk.Button(
             button_frame,
-            text="CANCEL",
-            font=('Inter', 11, 'bold'),
-            bg=COLORS['error'],
-            fg='white',
-            bd=0,
-            padx=25,
-            pady=12,
-            cursor='hand2',
+            text="Cancel",
+            font=('Inter', 11),
+            bg=COLORS['bg_tertiary'],
+            fg=COLORS['text_primary'],
+            activebackground=COLORS['bg_secondary'],
+            activeforeground=COLORS['text_primary'],
             command=self.cancel_installation,
-            state='disabled'
+            state=tk.DISABLED,
+            padx=20,
+            pady=8,
+            relief=tk.RAISED,
+            bd=2
         )
-        self.cancel_btn.pack(side=tk.LEFT)
+        self.cancel_btn.pack(side=tk.RIGHT)
         
         # Right column - Console output
         right_frame = tk.Frame(content_frame, bg=COLORS['bg_card'])
@@ -328,12 +373,13 @@ class TunnelInstallerGUI:
         
         self.console = scrolledtext.ScrolledText(
             console_frame,
-            font=('JetBrains Mono', 9),
-            bg='#000000',
-            fg=COLORS['accent_light'],
+            font=('Courier', 9),
+            bg='white',
+            fg=COLORS['text_primary'],
             insertbackground=COLORS['accent_primary'],
             wrap=tk.WORD,
-            bd=0
+            bd=1,
+            relief=tk.SUNKEN
         )
         self.console.pack(fill=tk.BOTH, expand=True)
         
@@ -400,9 +446,9 @@ class TunnelInstallerGUI:
     def check_license(self):
         """Enable/disable install button based on license acceptance"""
         if self.license_var.get():
-            self.install_btn.config(state='normal')
+            self.install_btn.config(state=tk.NORMAL, bg=COLORS['accent_primary'], fg='white')
         else:
-            self.install_btn.config(state='disabled')
+            self.install_btn.config(state=tk.DISABLED, bg=COLORS['bg_tertiary'], fg=COLORS['text_primary'])
     
     def update_progress(self, percent, message=""):
         """Update progress bar and label"""
