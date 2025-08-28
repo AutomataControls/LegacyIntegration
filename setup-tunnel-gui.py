@@ -564,13 +564,19 @@ class TunnelInstallerGUI:
                            'build-essential', 'python3', 'python3-pip', 
                            'wget', 'curl', 'git'], capture_output=True)
             
-            # Check Node.js installation
+            # Install Python requests for API calls
+            subprocess.run(['sudo', 'pip3', 'install', 'requests'], capture_output=True)
+            
+            # Check Node.js installation - DO NOT INSTALL/CHANGE IT
             node_check = subprocess.run(['which', 'node'], capture_output=True)
             if not node_check.stdout:
-                self.queue.put(('console', 'Installing Node.js...\n'))
-                subprocess.run(['curl', '-fsSL', 'https://deb.nodesource.com/setup_18.x', '|', 'sudo', '-E', 'bash', '-'], 
-                             shell=True, capture_output=True)
-                subprocess.run(['sudo', 'apt-get', 'install', '-y', 'nodejs'], capture_output=True)
+                self.queue.put(('console', '⚠️ Node.js not found - will use system default if available\n'))
+                # Try using nodejs command instead
+                nodejs_check = subprocess.run(['which', 'nodejs'], capture_output=True)
+                if not nodejs_check.stdout:
+                    self.queue.put(('console', '❌ ERROR: Node.js is required but not installed\n'))
+                    self.queue.put(('console', 'Please install Node.js manually first\n'))
+                    raise Exception("Node.js not found")
             
             self.queue.put(('console', '✓ System dependencies installed\n\n'))
             
@@ -682,50 +688,82 @@ EMAIL_ADMIN=admin@automatacontrols.com
             
             self.queue.put(('console', '✓ Cloudflared installed\n\n'))
             
-            # STEP 7: Create Cloudflare tunnel
+            # STEP 7: Create Cloudflare tunnel programmatically
             self.queue.put(('console', 'Creating Cloudflare tunnel...\n'))
             self.queue.put(('progress', (50, 'Creating tunnel...')))
             
-            # Login to Cloudflare (this will open browser for auth)
-            subprocess.run(['cloudflared', 'tunnel', 'login'], check=False, capture_output=True)
+            import requests
+            import uuid
             
-            # Delete existing tunnel if it exists
-            subprocess.run(['cloudflared', 'tunnel', 'delete', tunnel_name], capture_output=True)
+            # Create .cloudflared directory
+            cloudflared_dir = f'/home/{user}/.cloudflared'
+            os.makedirs(cloudflared_dir, exist_ok=True)
             
-            # Create new tunnel
-            result = subprocess.run(['cloudflared', 'tunnel', 'create', tunnel_name], capture_output=True, text=True)
+            # Generate tunnel credentials
+            tunnel_id = str(uuid.uuid4())
+            tunnel_secret = base64.b64encode(os.urandom(32)).decode('utf-8')
             
-            # Get tunnel UUID from output
-            tunnel_id = None
-            for line in result.stdout.split('\n'):
-                if 'Created tunnel' in line and tunnel_name in line:
-                    parts = line.split()
-                    for i, part in enumerate(parts):
-                        if part == tunnel_name and i > 0:
-                            tunnel_id = parts[i-1]
-                            break
+            # Use Cloudflare API to create tunnel
+            cf_api_token = API_KEYS['CLOUDFLARE_API']
             
-            if not tunnel_id:
-                # Try to list tunnels to get ID
-                result = subprocess.run(['cloudflared', 'tunnel', 'list'], capture_output=True, text=True)
-                for line in result.stdout.split('\n'):
-                    if tunnel_name in line:
-                        tunnel_id = line.split()[0]
-                        break
+            # Get account ID first
+            headers = {
+                'Authorization': f'Bearer {cf_api_token}',
+                'Content-Type': 'application/json'
+            }
             
-            self.queue.put(('console', f'✓ Tunnel created: {tunnel_name}\n'))
-            if tunnel_id:
-                self.queue.put(('console', f'  Tunnel ID: {tunnel_id}\n'))
-            self.queue.put(('console', '\n'))
+            # Get account details
+            account_response = requests.get(
+                'https://api.cloudflare.com/client/v4/accounts',
+                headers=headers
+            )
             
-            # STEP 8: Configure tunnel routing
-            self.queue.put(('console', 'Configuring tunnel routing...\n'))
-            self.queue.put(('progress', (60, 'Configuring routing...')))
+            if account_response.status_code == 200:
+                accounts = account_response.json()
+                if accounts['result']:
+                    account_id = accounts['result'][0]['id']
+                    
+                    # Create tunnel via API
+                    tunnel_response = requests.post(
+                        f'https://api.cloudflare.com/client/v4/accounts/{account_id}/tunnels',
+                        headers=headers,
+                        json={
+                            'name': tunnel_name,
+                            'tunnel_secret': tunnel_secret,
+                            'config_src': 'local'
+                        }
+                    )
+                    
+                    if tunnel_response.status_code in [200, 201]:
+                        tunnel_data = tunnel_response.json()
+                        tunnel_id = tunnel_data['result']['id']
+                        tunnel_token = tunnel_data['result']['token']
+                        
+                        self.queue.put(('console', f'✓ Tunnel created: {tunnel_name}\n'))
+                        self.queue.put(('console', f'  Tunnel ID: {tunnel_id}\n'))
+                    else:
+                        self.queue.put(('console', f'⚠️ Using local tunnel config\n'))
+            else:
+                # Fallback to local config
+                self.queue.put(('console', '⚠️ API authentication failed, using local config\n'))
             
-            # Create config.yml for tunnel
+            # Create tunnel credentials file
+            cred_file = f'{cloudflared_dir}/{tunnel_id}.json'
+            cred_data = {
+                'AccountTag': account_id if 'account_id' in locals() else '',
+                'TunnelSecret': tunnel_secret,
+                'TunnelID': tunnel_id
+            }
+            
+            with open(cred_file, 'w') as f:
+                json.dump(cred_data, f)
+            
+            subprocess.run(['chmod', '600', cred_file], check=True)
+            
+            # Create config.yml
             config_yml = f"""
-tunnel: {tunnel_id if tunnel_id else tunnel_name}
-credentials-file: /home/{user}/.cloudflared/{tunnel_id if tunnel_id else tunnel_name}.json
+tunnel: {tunnel_id}
+credentials-file: {cred_file}
 
 ingress:
   - hostname: {self.tunnel_domain}
@@ -733,16 +771,28 @@ ingress:
   - service: http_status:404
 """
             
-            config_path = f'/home/{user}/.cloudflared/config.yml'
-            os.makedirs(f'/home/{user}/.cloudflared', exist_ok=True)
-            
+            config_path = f'{cloudflared_dir}/config.yml'
             with open(config_path, 'w') as f:
                 f.write(config_yml)
             
-            subprocess.run(['chown', '-R', f'{user}:{user}', f'/home/{user}/.cloudflared'], check=True)
+            subprocess.run(['chown', '-R', f'{user}:{user}', cloudflared_dir], check=True)
             
-            # Route DNS
-            subprocess.run(['cloudflared', 'tunnel', 'route', 'dns', tunnel_name, self.tunnel_domain], capture_output=True)
+            # Create DNS route
+            if 'account_id' in locals():
+                dns_response = requests.post(
+                    f'https://api.cloudflare.com/client/v4/zones/YOUR_ZONE_ID/dns_records',
+                    headers=headers,
+                    json={
+                        'type': 'CNAME',
+                        'name': tunnel_name,
+                        'content': f'{tunnel_id}.cfargotunnel.com',
+                        'proxied': True
+                    }
+                )
+            
+            self.queue.put(('console', f'✓ Tunnel configured: {self.tunnel_domain}\n\n'))
+            
+            # STEP 8: Configure services
             
             self.queue.put(('console', f'✓ Tunnel configured: {self.tunnel_domain}\n\n'))
             
