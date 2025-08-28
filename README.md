@@ -1,6 +1,13 @@
 # Legacy Integration Package
 ## Automata Remote Access Portal for Raspberry Pi 4 Systems
 
+![Platform](https://img.shields.io/badge/Platform-Raspberry%20Pi%204-c51a4a)
+![Node-RED](https://img.shields.io/badge/Node--RED-v3.0%2B-8F0000)
+![Python](https://img.shields.io/badge/Python-3.7%2B-3776AB)
+![Cloudflare](https://img.shields.io/badge/Cloudflare-Tunnel-F38020)
+![License](https://img.shields.io/badge/License-Commercial-red)
+![Status](https://img.shields.io/badge/Status-Production%20Ready-success)
+
 This package provides remote access capabilities for legacy Raspberry Pi 4 systems with 64GB SD cards, enabling secure Cloudflare tunnel access to Node-RED, terminal, and Neural BMS.
 
 ## Package Contents
