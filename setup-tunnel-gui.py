@@ -541,10 +541,10 @@ class TunnelInstallerGUI:
             self.queue.put(('console', '═══════════════════════════════════════\n\n'))
             self.queue.put(('progress', (10, 'Generating serial number...')))
             
-            # Generate random 6-character hex suffix
-            random_suffix = ''.join(random.choice('0123456789ABCDEF') for _ in range(6))
-            self.controller_serial = f"AutomataNexusBms-{random_suffix}"
-            tunnel_name = self.controller_serial.lower()
+            # Generate random 6-character hex suffix (lowercase)
+            random_suffix = ''.join(random.choice('0123456789abcdef') for _ in range(6))
+            self.controller_serial = f"nexuscontroller-anc-{random_suffix}"
+            tunnel_name = self.controller_serial
             self.tunnel_domain = f"{tunnel_name}.automatacontrols.com"
             
             self.queue.put(('console', f'✓ Controller Serial: {self.controller_serial}\n'))
@@ -602,7 +602,7 @@ class TunnelInstallerGUI:
 
 # Controller Information
 CONTROLLER_SERIAL={self.controller_serial}
-CONTROLLER_NAME=AutomataNexusBms Controller
+CONTROLLER_NAME=Nexus Controller ANC
 LOCATION={location}
 
 # API Keys
