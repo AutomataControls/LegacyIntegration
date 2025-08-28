@@ -1,25 +1,25 @@
 /* Neural Nexus Design System - Remote Portal */
 
 :root {
-  /* Primary Colors - Dark Theme */
-  --bg-primary: #0a0e1a;
-  --bg-secondary: #0f1823;
-  --bg-tertiary: #1a2332;
-  --bg-card: #141b28;
-  --bg-hover: #1e2a3a;
+  /* Primary Colors - Light Theme (Neural Nexus Style) */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8f9fa;
+  --bg-tertiary: #e9ecef;
+  --bg-card: #ffffff;
+  --bg-hover: #f1f3f5;
   
   /* Accent Colors - Neural Teal/Cyan */
   --accent-primary: #06b6d4;
   --accent-secondary: #0891b2;
-  --accent-light: #67e8f9;
+  --accent-light: #22d3ee;
   --accent-dark: #0e7490;
-  --accent-glow: rgba(6, 182, 212, 0.2);
+  --accent-glow: rgba(6, 182, 212, 0.1);
   
   /* Text Colors */
-  --text-primary: #f0f9ff;
-  --text-secondary: #94a3b8;
-  --text-tertiary: #64748b;
-  --text-muted: #475569;
+  --text-primary: #212529;
+  --text-secondary: #495057;
+  --text-tertiary: #6c757d;
+  --text-muted: #adb5bd;
   
   /* Status Colors */
   --success: #10b981;
@@ -28,12 +28,12 @@
   --info: #3b82f6;
   
   /* Borders & Shadows */
-  --border-color: rgba(148, 163, 184, 0.1);
-  --border-active: rgba(6, 182, 212, 0.5);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
-  --shadow-glow: 0 0 20px rgba(6, 182, 212, 0.3);
+  --border-color: rgba(0, 0, 0, 0.1);
+  --border-active: rgba(6, 182, 212, 0.3);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --shadow-glow: 0 0 15px rgba(6, 182, 212, 0.15);
 }
 
 /* Reset & Base */
@@ -63,13 +63,13 @@ body {
 
 /* Weather Bar */
 .weather-bar {
-  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
   border-bottom: 1px solid var(--border-color);
   padding: 0.75rem 1.5rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-sm);
   position: relative;
   z-index: 100;
 }
@@ -131,9 +131,10 @@ body {
   align-items: center;
   gap: 1rem;
   padding: 0.5rem 1rem;
-  background: var(--bg-card);
+  background: #ffffff;
   border-radius: 8px;
-  border: 1px solid var(--border-color);
+  border: 1px solid #e9ecef;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .weather-icon {
@@ -168,9 +169,10 @@ body {
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  background: var(--bg-card);
+  background: #ffffff;
   border-radius: 8px;
-  border: 1px solid var(--border-color);
+  border: 1px solid #e9ecef;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .status-indicator {
@@ -195,9 +197,10 @@ body {
   font-size: 0.875rem;
   color: var(--text-tertiary);
   padding: 0.5rem 1rem;
-  background: var(--bg-card);
+  background: #ffffff;
   border-radius: 8px;
-  border: 1px solid var(--border-color);
+  border: 1px solid #e9ecef;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 /* Main Layout */
@@ -210,11 +213,12 @@ body {
 /* Sidebar Navigation */
 .sidebar {
   width: 240px;
-  background: var(--bg-secondary);
-  border-right: 1px solid var(--border-color);
+  background: #f8f9fa;
+  border-right: 1px solid #dee2e6;
   display: flex;
   flex-direction: column;
   transition: all 0.3s ease;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
 }
 
 .sidebar-header {
@@ -253,12 +257,12 @@ body {
 }
 
 .nav-item:hover {
-  background: var(--bg-hover);
+  background: #e9ecef;
   color: var(--text-primary);
 }
 
 .nav-item.active {
-  background: var(--bg-hover);
+  background: rgba(6, 182, 212, 0.1);
   color: var(--accent-primary);
 }
 
@@ -326,17 +330,18 @@ body {
 }
 
 .metric-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
+  background: #ffffff;
+  border: 1px solid #e9ecef;
   border-radius: 12px;
   padding: 1.5rem;
   transition: all 0.3s ease;
+  box-shadow: var(--shadow-sm);
 }
 
 .metric-card:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
-  border-color: var(--border-active);
+  border-color: var(--accent-primary);
 }
 
 .metric-header {
@@ -395,11 +400,12 @@ body {
 
 /* Chart Container */
 .chart-container {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
+  background: #ffffff;
+  border: 1px solid #e9ecef;
   border-radius: 12px;
   padding: 1.5rem;
   margin-bottom: 2rem;
+  box-shadow: var(--shadow-sm);
 }
 
 .chart-header {
@@ -422,8 +428,8 @@ body {
 
 .chart-option {
   padding: 0.25rem 0.75rem;
-  background: var(--bg-hover);
-  border: 1px solid var(--border-color);
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
   border-radius: 6px;
   color: var(--text-secondary);
   font-size: 0.75rem;
@@ -439,7 +445,7 @@ body {
 
 .chart-option.active {
   background: var(--accent-primary);
-  color: var(--bg-primary);
+  color: #ffffff;
   border-color: var(--accent-primary);
 }
 
@@ -451,9 +457,9 @@ body {
 }
 
 .terminal-header {
-  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
   padding: 1rem 1.5rem;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid #dee2e6;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -474,8 +480,8 @@ body {
 
 .terminal-btn {
   padding: 0.25rem 0.5rem;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
+  background: #ffffff;
+  border: 1px solid #dee2e6;
   border-radius: 4px;
   color: var(--text-secondary);
   font-size: 0.75rem;

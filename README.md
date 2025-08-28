@@ -20,7 +20,7 @@ The AutomataControls™ Legacy Integration Package provides enterprise-grade rem
 ## 🎯 Key Features
 
 ### Neural Nexus™ Interface
-- **Dark Theme Design**: Professional dark interface with cyan/teal accents
+- **Light Theme Design**: Clean white interface with cyan/teal accents matching Neural Nexus style
 - **Weather Display**: Real-time weather information in the top bar
 - **System Monitoring**: Live CPU, memory, disk usage with beautiful charts
 - **Responsive Layout**: Fully responsive design that adapts to any screen size
@@ -187,7 +187,7 @@ After successful installation, your portal will be accessible at:
 
 ### Technology Stack
 - **Frontend**: React 18.2 with TypeScript
-- **Styling**: Neural Nexus design system (dark theme)
+- **Styling**: Neural Nexus design system (light theme)
 - **Backend**: Node.js with Express
 - **Terminal**: xterm.js with Socket.IO
 - **Charts**: Chart.js with react-chartjs-2
