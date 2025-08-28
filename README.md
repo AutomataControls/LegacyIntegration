@@ -78,10 +78,15 @@ Both services:
 ## System Requirements
 
 - Raspberry Pi 4 with 64GB SD card
-- Raspbian OS (Bullseye or newer)
+- Raspbian OS Bullseye (32-bit or 64-bit supported)
 - Python 3.7+
 - Node-RED installed and running on port 1880
 - Internet connection
+
+### Architecture Support
+- ✅ **32-bit ARM** (armv7l/armhf) - Raspberry Pi OS (32-bit)
+- ✅ **64-bit ARM** (aarch64/arm64) - Raspberry Pi OS (64-bit)
+- Auto-detects architecture and installs appropriate packages
 
 ## Dependencies Installed
 

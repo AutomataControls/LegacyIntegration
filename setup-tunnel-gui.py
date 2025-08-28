@@ -574,12 +574,29 @@ class TunnelSetupGUI:
                 self.queue.put(('console', '✓ Cloudflared already installed\n\n'))
             except:
                 self.queue.put(('console', 'Installing cloudflared...\n'))
+                
+                # Detect architecture
+                import platform
+                machine = platform.machine()
+                if machine == 'aarch64' or machine == 'arm64':
+                    # 64-bit ARM
+                    cloudflared_pkg = 'cloudflared-linux-arm64.deb'
+                elif machine == 'armv7l' or machine == 'armhf':
+                    # 32-bit ARM (Raspberry Pi)
+                    cloudflared_pkg = 'cloudflared-linux-armhf.deb'
+                else:
+                    # Fallback to 32-bit ARM for other ARM variants
+                    cloudflared_pkg = 'cloudflared-linux-armhf.deb'
+                
+                self.queue.put(('console', f'Detected architecture: {machine}\n'))
+                self.queue.put(('console', f'Downloading {cloudflared_pkg}...\n'))
+                
                 subprocess.run([
                     'wget', '-q',
-                    'https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64.deb'
+                    f'https://github.com/cloudflare/cloudflared/releases/latest/download/{cloudflared_pkg}'
                 ], check=True)
-                subprocess.run(['sudo', 'dpkg', '-i', 'cloudflared-linux-arm64.deb'], check=True)
-                subprocess.run(['rm', 'cloudflared-linux-arm64.deb'], check=True)
+                subprocess.run(['sudo', 'dpkg', '-i', cloudflared_pkg], check=True)
+                subprocess.run(['rm', cloudflared_pkg], check=True)
                 self.queue.put(('console', '✓ Cloudflared installed successfully\n\n'))
             
             # STEP 3: Get Cloudflare account ID

@@ -38,9 +38,26 @@ CLOUDFLARE_API=$(echo "$ENCODED_API" | base64 -d)
 # Check if cloudflared is installed
 if ! command -v cloudflared &> /dev/null; then
     echo -e "${YELLOW}Installing Cloudflare tunnel...${NC}"
-    wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64.deb
-    dpkg -i cloudflared-linux-arm64.deb
-    rm cloudflared-linux-arm64.deb
+    
+    # Detect architecture
+    ARCH=$(uname -m)
+    if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
+        # 64-bit ARM
+        CLOUDFLARED_PKG="cloudflared-linux-arm64.deb"
+    elif [ "$ARCH" = "armv7l" ] || [ "$ARCH" = "armhf" ]; then
+        # 32-bit ARM (Raspberry Pi)
+        CLOUDFLARED_PKG="cloudflared-linux-armhf.deb"
+    else
+        # Fallback to 32-bit ARM
+        CLOUDFLARED_PKG="cloudflared-linux-armhf.deb"
+    fi
+    
+    echo -e "${YELLOW}Detected architecture: ${ARCH}${NC}"
+    echo -e "${YELLOW}Downloading ${CLOUDFLARED_PKG}...${NC}"
+    
+    wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/${CLOUDFLARED_PKG}
+    dpkg -i ${CLOUDFLARED_PKG}
+    rm ${CLOUDFLARED_PKG}
 fi
 
 # Generate new controller serial
